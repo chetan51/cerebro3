@@ -43,7 +43,7 @@ class Patcher:
             for layer_index, layer in enumerate(timestep):
                 data = ((layer["weights"] + 1) / 2) * 255
                 img = Image.fromarray(data).convert("L")
-                img_path = "{0}/layer-{1}_timestep-{2}.png".format(path, layer_index, timestep_index)
+                img_path = "{0}/{1}/layer-{2}_timestep-{3}.png".format(path, self.name, layer_index, timestep_index)
                 print(img_path)
                 img.save(img_path)
 
