@@ -27,7 +27,7 @@ class Patcher:
                 # TODO: check for other types of layers
                 if isinstance(layer, nn.Linear):
                     timestep.append({
-                        "weights": layer.weight.detach().numpy()
+                        "weights": layer.weight.clone().numpy()
                     })
             
             # add timestep to list of timesteps
