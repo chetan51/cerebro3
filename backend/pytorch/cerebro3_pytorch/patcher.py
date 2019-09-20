@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from PIL import Image
 import torch.nn as nn
 
 
@@ -38,8 +39,13 @@ class Patcher:
         return backward_hook
     
     def save(self, path):
-        with open(path, 'w') as outfile:
-            json.dump(self.timesteps, outfile, default=dump_convert)
+        for timestep_index, timestep in enumerate(self.timesteps):
+            for layer_index, layer in enumerate(timestep):
+                data = ((layer["weights"] + 1) / 2) * 255
+                img = Image.fromarray(data).convert("L")
+                img_path = "{0}/layer-{1}_timestep-{2}.png".format(path, layer_index, timestep_index)
+                print(img_path)
+                img.save(img_path)
 
 
 # For use with json.dump
