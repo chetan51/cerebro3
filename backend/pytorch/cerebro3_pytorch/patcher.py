@@ -37,7 +37,7 @@ class Patcher:
         
         return backward_hook
     
-    def save(self, path):
+    def save(self, path, timestep_interval=1):
         # make sure folder at specified path exists
         expandedPath = os.path.expanduser(path)  # expand ~
         folder = "{0}/{1}".format(expandedPath, self.name)
@@ -45,6 +45,11 @@ class Patcher:
 
         # save each timestep as a PNG to the specified path folder
         for timestep_index, timestep in enumerate(self.timesteps):
+            # only keep timesteps with the specified interval
+            if timestep_index % timestep_interval != 0:
+                continue
+
+            # save each layer's weights as a PNG
             for layer_index, layer in enumerate(timestep):
                 # convert weights to range [0, 255]
                 data = ((layer["weights"] + 1) / 2) * 255
