@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import os
 from PIL import Image
 import torch.nn as nn
 
@@ -33,18 +34,27 @@ class Patcher:
             
             # add timestep to list of timesteps
             self.timesteps.append(timestep)
-
-            print(len(self.timesteps))
         
         return backward_hook
     
     def save(self, path):
+        # make sure folder at specified path exists
+        expandedPath = os.path.expanduser(path)  # expand ~
+        folder = "{0}/{1}".format(expandedPath, self.name)
+        os.makedirs(folder, exist_ok=True)
+
+        # save each timestep as a PNG to the specified path folder
         for timestep_index, timestep in enumerate(self.timesteps):
             for layer_index, layer in enumerate(timestep):
+                # convert weights to range [0, 255]
                 data = ((layer["weights"] + 1) / 2) * 255
+
+                # create image from data
                 img = Image.fromarray(data).convert("L")
-                img_path = "{0}/{1}/layer-{2}_timestep-{3}.png".format(path, self.name, layer_index, timestep_index)
-                print(img_path)
+
+                # save image to its designated path
+                img_path = "{0}/layer-{1}_timestep-{2}.png".format(
+                    folder, layer_index, timestep_index)
                 img.save(img_path)
 
 
