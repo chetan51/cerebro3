@@ -36,6 +36,8 @@ class Plot {
       constructor() {
         this.layer = layers[0];
         this.time = 0;
+        this.next = () => {};
+        this.prev = () => {};
       }
     }
     this.userChoices = new Choices();
@@ -56,13 +58,37 @@ class Plot {
     let maxTime = Math.floor(this.numTimesteps / this.timestepInterval);
     let timeController = this.gui.add(this.userChoices, 'time', 0, maxTime).step(1);
 
-    // subscribe to events
-    timeController.onFinishChange((value) => {
+    let onTimeChanged = (value) => {
       // update timestep
       this.timestep = value * this.timestepInterval;
 
       // update plot
       this.update();
+    }
+
+    // subscribe to events
+    timeController.onFinishChange(onTimeChanged);
+
+    // add next time button
+    let nextTimeController = this.gui.add(this.userChoices, 'next');
+    // subscribe to events
+    nextTimeController.onChange((value) => {
+      // update UI
+      timeController.setValue(timeController.getValue() + 1);
+
+      // trigger event
+      onTimeChanged(timeController.getValue());
+    });
+
+    // add prev time button
+    let prevTimeController = this.gui.add(this.userChoices, 'prev');
+    // subscribe to events
+    prevTimeController.onChange((value) => {
+      // update UI
+      timeController.setValue(timeController.getValue() - 1);
+
+      // trigger event
+      onTimeChanged(timeController.getValue());
     });
   }
 
@@ -159,18 +185,6 @@ class Plot {
         Plotly.restyle(this.plotElement, update, layout);
       }
     });
-  }
-
-  nextTimestep() {
-    this.timestep += this.timestepInterval;
-
-    this.update(false);
-  }
-
-  nextLayer() {
-    this.layerIndex++;
-
-    this.update();
   }
 
 }
