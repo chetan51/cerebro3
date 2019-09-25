@@ -1,0 +1,19 @@
+{
+  "name": "cerebro3",
+  "version": "0.0.1",
+  "description": "Frontend for cerebro3 (a web-based visualization platform for Neural Networks).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chetan51/cerebro3.git"
+  },
+  "author": "Chetan Surpur <chetan.surpur@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chetan51/cerebro3/issues"
+  },
+  "homepage": "https://github.com/chetan51/cerebro3#readme"
+}
