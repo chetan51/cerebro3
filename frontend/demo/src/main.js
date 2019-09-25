@@ -4,8 +4,8 @@ const Plot = require('cerebro3').Plot
 $(document).ready(() => {
   // initialize plot
   document.plot = new Plot($("#plot")[0], "/data", [
-    "DenseKWinners",
     "DenseReLU",
+    "DenseKWinners",
     "SparseKWinners"
   ]);
 

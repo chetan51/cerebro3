@@ -66,6 +66,7 @@ class Plot {
         }
 
         var trace = {
+          name: model,
           z: z,
           type: 'heatmap',
           // zmin: 0,

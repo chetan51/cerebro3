@@ -11256,6 +11256,7 @@ class Plot {
         }
 
         var trace = {
+          name: model,
           z: z,
           type: 'heatmap',
           // zmin: 0,
@@ -11316,8 +11317,8 @@ const Plot = require('cerebro3').Plot
 $(document).ready(() => {
   // initialize plot
   document.plot = new Plot($("#plot")[0], "/data", [
-    "DenseKWinners",
     "DenseReLU",
+    "DenseKWinners",
     "SparseKWinners"
   ]);
 
