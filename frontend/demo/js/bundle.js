@@ -11251,15 +11251,15 @@ class Plot {
         for (var i = 0; i < height; i++) {
           z[i] = [];
           for (var j = 0; j < width; j++) {
-            z[i][j] = data["pixels"][(i * width) + j] / 255;
+            z[i][j] = (data["pixels"][(i * width) + j] / 255) - 0.5;
           }
         }
 
         var trace = {
           z: z,
           type: 'heatmap',
-          zmin: 0,
-          zmax: 1,
+          // zmin: 0,
+          // zmax: 1,
           zauto: false,
           xaxis: `x${modelIndex+1}`,
           yaxis: `y${modelIndex+1}`,
