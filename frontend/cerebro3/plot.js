@@ -84,7 +84,9 @@ class Plot {
         modelIndex++;
       };
 
+      let title = this.models.join(" vs. ");
       var layout = {
+        title: title,
         height: 900,
         grid: {
           rows: this.models.length,
