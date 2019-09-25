@@ -11193,11 +11193,12 @@ const PNGReader = require('png.js');
 
 class Plot {
 
-  constructor(plotElement, dataPath, models) {
+  constructor(plotElement, dataPath, models, timestepInterval=100) {
     // save parameters
     this.plotElement = plotElement;
     this.dataPath = dataPath;
     this.models = models;
+    this.timestepInterval = timestepInterval;
 
     // initialize properties
     this.timestep = 0;
@@ -11240,7 +11241,8 @@ class Plot {
       let traces = [];
       let modelIndex = 0;
 
-      for (let [model, data] of Object.entries(modelData)) {
+      for (let model of this.models) {
+        let data = modelData[model];
         let width = data["width"];
         let height = data["height"];
 
@@ -11279,13 +11281,26 @@ class Plot {
 
       if (this.timestep == 0) {
         Plotly.plot(this.plotElement, traces, layout);
-        // Plotly.plot(this.plotElement, [traces[0]]);
       }
       else {
-        // Plotly.restyle(plotElement, { z: [data["z"]] });
-        Plotly.newPlot(this.plotElement, traces, layout);
+        // convert traces to a data update
+        let update = {
+          z: []
+        };
+        for (let trace of traces) {
+          update["z"].push(trace["z"]);
+        }
+
+        // update the plot's data
+        Plotly.restyle(this.plotElement, update, layout);
       }
     });
+  }
+
+  nextTimestep() {
+    this.timestep += this.timestepInterval;
+
+    this.load();
   }
 
 }
@@ -11300,15 +11315,19 @@ const Plot = require('cerebro3').Plot
 
 $(document).ready(() => {
   // initialize plot
-  const plot = new Plot($("#plot")[0], "/data", [
+  document.plot = new Plot($("#plot")[0], "/data", [
     "DenseKWinners",
     "DenseReLU",
     "SparseKWinners"
   ]);
 
   // load the plot
-  plot.load();
+  document.plot.load();
 })
+
+document.nextTimestep = function() {
+  document.plot.nextTimestep();
+}
 
 },{"cerebro3":1,"jquery":6}],8:[function(require,module,exports){
 (function (global){
