@@ -1,11 +1,15 @@
+const PNGReader = require('png.js');
+
 class Plot {
 
-  constructor(plotElement) {
+  constructor(plotElement, dataPath, models) {
     this.plotElement = plotElement;
+    this.dataPath = dataPath;
+    this.models = models;
   }
 
-  show() {
-    alert(this.plotElement);
+  load() {
+    alert(this.dataPath);
   }
 
 }

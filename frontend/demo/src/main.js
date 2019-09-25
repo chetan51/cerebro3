@@ -2,6 +2,13 @@ const $ = require("jquery");
 const Plot = require('cerebro3').Plot
 
 $(document).ready(() => {
-  const plot = new Plot($("#plot"));
-  plot.show();
+  // initialize plot
+  const plot = new Plot($("#plot"), "/data", [
+    "DenseKWinners",
+    "DenseReLU",
+    "SparseKWinners"
+  ]);
+
+  // load the plot
+  plot.load();
 })
