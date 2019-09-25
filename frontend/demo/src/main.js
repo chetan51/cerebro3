@@ -8,11 +8,12 @@ $(document).ready(() => {
     "DenseKWinners",
     "SparseKWinners"
   ]);
-
-  // load the plot
-  document.plot.load();
 })
 
 document.nextTimestep = function() {
   document.plot.nextTimestep();
+}
+
+document.nextLayer = function() {
+  document.plot.nextLayer();
 }

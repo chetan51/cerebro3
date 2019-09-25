@@ -13,9 +13,12 @@ class Plot {
     // initialize properties
     this.timestep = 0;
     this.layerIndex = 0;
+
+    // update plot
+    this.update();
   }
 
-  load() {
+  update(newPlot=true) {
     let requests = [];
     let modelData = {};
 
@@ -90,8 +93,8 @@ class Plot {
         },
       };
 
-      if (this.timestep == 0) {
-        Plotly.plot(this.plotElement, traces, layout);
+      if (newPlot) {
+        Plotly.newPlot(this.plotElement, traces, layout);
       }
       else {
         // convert traces to a data update
@@ -111,7 +114,13 @@ class Plot {
   nextTimestep() {
     this.timestep += this.timestepInterval;
 
-    this.load();
+    this.update(false);
+  }
+
+  nextLayer() {
+    this.layerIndex++;
+
+    this.update();
   }
 
 }
