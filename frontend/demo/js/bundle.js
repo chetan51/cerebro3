@@ -11202,11 +11202,11 @@ class Plot {
     // initialize properties
     this.timestep = 0;
     this.layerIndex = 0;
-    this.currentModelData = {};
   }
 
   load() {
     let requests = [];
+    let modelData = {};
 
     // create requests 
     for (let model of this.models) {
@@ -11223,7 +11223,7 @@ class Plot {
             return reader.parse((err, png) => {
               if (err) throw err;
 
-              this.currentModelData[model] = png;
+              modelData[model] = png;
             });
           },
           error: (err) => {
@@ -11240,7 +11240,7 @@ class Plot {
       let traces = [];
       let modelIndex = 0;
 
-      for (let [model, data] of Object.entries(this.currentModelData)) {
+      for (let [model, data] of Object.entries(modelData)) {
         let width = data["width"];
         let height = data["height"];
 
