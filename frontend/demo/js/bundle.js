@@ -3,610 +3,7 @@ const Plot = require('./plot.js')
 
 module.exports.Plot = Plot
 
-},{"./plot.js":4}],2:[function(require,module,exports){
-"use strict";
-
-var PNG = function(){
-
-	// initialize all members to keep the same hidden class
-	this.width = 0;
-	this.height = 0;
-	this.bitDepth = 0;
-	this.colorType = 0;
-	this.compressionMethod = 0;
-	this.filterMethod = 0;
-	this.interlaceMethod = 0;
-
-	this.colors = 0;
-	this.alpha = false;
-	this.pixelBits = 0;
-
-	this.palette = null;
-	this.pixels = null;
-
-};
-
-PNG.prototype.getWidth = function(){
-	return this.width;
-};
-
-PNG.prototype.setWidth = function(width){
-	this.width = width;
-};
-
-PNG.prototype.getHeight = function(){
-	return this.height;
-};
-
-PNG.prototype.setHeight = function(height){
-	this.height = height;
-};
-
-PNG.prototype.getBitDepth = function(){
-	return this.bitDepth;
-};
-
-PNG.prototype.setBitDepth = function(bitDepth){
-	if ([2, 4, 8, 16].indexOf(bitDepth) === -1){
-		throw new Error("invalid bith depth " + bitDepth);
-	}
-	this.bitDepth = bitDepth;
-};
-
-PNG.prototype.getColorType = function(){
-	return this.colorType;
-};
-
-PNG.prototype.setColorType = function(colorType){
-
-	//   Color    Allowed    Interpretation
-	//   Type    Bit Depths
-	//
-	//   0       1,2,4,8,16  Each pixel is a grayscale sample.
-	//
-	//   2       8,16        Each pixel is an R,G,B triple.
-	//
-	//   3       1,2,4,8     Each pixel is a palette index;
-	//                       a PLTE chunk must appear.
-	//
-	//   4       8,16        Each pixel is a grayscale sample,
-	//                       followed by an alpha sample.
-	//
-	//   6       8,16        Each pixel is an R,G,B triple,
-	//                       followed by an alpha sample.
-
-	var colors = 0, alpha = false;
-
-	switch (colorType){
-		case 0: colors = 1; break;
-		case 2: colors = 3; break;
-		case 3: colors = 1; break;
-		case 4: colors = 2; alpha = true; break;
-		case 6: colors = 4; alpha = true; break;
-		default: throw new Error("invalid color type");
-	}
-
-	this.colors = colors;
-	this.alpha = alpha;
-	this.colorType = colorType;
-};
-
-PNG.prototype.getCompressionMethod = function(){
-	return this.compressionMethod;
-};
-
-PNG.prototype.setCompressionMethod = function(compressionMethod){
-	if (compressionMethod !== 0){
-		throw new Error("invalid compression method " + compressionMethod);
-	}
-	this.compressionMethod = compressionMethod;
-};
-
-PNG.prototype.getFilterMethod = function(){
-	return this.filterMethod;
-};
-
-PNG.prototype.setFilterMethod = function(filterMethod){
-	if (filterMethod !== 0){
-		throw new Error("invalid filter method " + filterMethod);
-	}
-	this.filterMethod = filterMethod;
-};
-
-PNG.prototype.getInterlaceMethod = function(){
-	return this.interlaceMethod;
-};
-
-PNG.prototype.setInterlaceMethod = function(interlaceMethod){
-	if (interlaceMethod !== 0 && interlaceMethod !== 1){
-		throw new Error("invalid interlace method " + interlaceMethod);
-	}
-	this.interlaceMethod = interlaceMethod;
-};
-
-PNG.prototype.setPalette = function(palette){
-	if (palette.length % 3 !== 0){
-		throw new Error("incorrect PLTE chunk length");
-	}
-	if (palette.length > (Math.pow(2, this.bitDepth) * 3)){
-		throw new Error("palette has more colors than 2^bitdepth");
-	}
-	this.palette = palette;
-};
-
-PNG.prototype.getPalette = function(){
-	return this.palette;
-};
-
-/**
- * get the pixel color on a certain location in a normalized way
- * result is an array: [red, green, blue, alpha]
- */
-PNG.prototype.getPixel = function(x, y){
-	if (!this.pixels) throw new Error("pixel data is empty");
-	if (x >= this.width || y >= this.height){
-		throw new Error("x,y position out of bound");
-	}
-	var i = this.colors * this.bitDepth / 8 * (y * this.width + x);
-	var pixels = this.pixels;
-
-	switch (this.colorType){
-		case 0: return [pixels[i], pixels[i], pixels[i], 255];
-		case 2: return [pixels[i], pixels[i + 1], pixels[i + 2], 255];
-		case 3: return [
-			this.palette[pixels[i] * 3 + 0],
-			this.palette[pixels[i] * 3 + 1],
-			this.palette[pixels[i] * 3 + 2],
-			255];
-		case 4: return [pixels[i], pixels[i], pixels[i], pixels[i + 1]];
-		case 6: return [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]];
-	}
-};
-
-module.exports = PNG;
-
-},{}],3:[function(require,module,exports){
-(function (Buffer){
-/*global Uint8Array:true ArrayBuffer:true */
-"use strict";
-
-var zlib = require('zlib');
-var PNG = require('./PNG');
-
-var inflate = function(data, callback){
-	return zlib.inflate(new Buffer(data), callback);
-};
-
-var slice = Array.prototype.slice;
-var toString = Object.prototype.toString;
-
-function equalBytes(a, b){
-	if (a.length != b.length) return false;
-	for (var l = a.length; l--;) if (a[l] != b[l]) return false;
-	return true;
-}
-
-function readUInt32(buffer, offset){
-	return (buffer[offset] << 24) +
-		(buffer[offset + 1] << 16) +
-		(buffer[offset + 2] << 8) +
-		(buffer[offset + 3] << 0);
-}
-
-function readUInt16(buffer, offset){
-	return (buffer[offset + 1] << 8) + (buffer[offset] << 0);
-}
-
-function readUInt8(buffer, offset){
-	return buffer[offset] << 0;
-}
-
-function bufferToString(buffer){
-	var str = '';
-	for (var i = 0; i < buffer.length; i++){
-		str += String.fromCharCode(buffer[i]);
-	}
-	return str;
-}
-
-var PNGReader = function(bytes){
-
-	if (typeof bytes == 'string'){
-		var bts = bytes;
-		bytes = new Array(bts.length);
-		for (var i = 0, l = bts.length; i < l; i++){
-			bytes[i] = bts[i].charCodeAt(0);
-		}
-	} else {
-		var type = toString.call(bytes).slice(8, -1);
-		if (type == 'ArrayBuffer') bytes = new Uint8Array(bytes);
-	}
-
-	// current pointer
-	this.i = 0;
-	// bytes buffer
-	this.bytes = bytes;
-	// Output object
-	this.png = new PNG();
-
-	this.dataChunks = [];
-
-};
-
-PNGReader.prototype.readBytes = function(length){
-	var end = this.i + length;
-	if (end > this.bytes.length){
-		throw new Error('Unexpectedly reached end of file');
-	}
-	var bytes = slice.call(this.bytes, this.i, end);
-	this.i = end;
-	return bytes;
-};
-
-/**
- * http://www.w3.org/TR/2003/REC-PNG-20031110/#5PNG-file-signature
- */
-PNGReader.prototype.decodeHeader = function(){
-
-	if (this.i !== 0){
-		throw new Error('file pointer should be at 0 to read the header');
-	}
-
-	var header = this.readBytes(8);
-
-	if (!equalBytes(header, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])){
-		throw new Error('invalid PNGReader file (bad signature)');
-	}
-
-	this.header = header;
-
-};
-
-/**
- * http://www.w3.org/TR/2003/REC-PNG-20031110/#5Chunk-layout
- *
- * length =  4      bytes
- * type   =  4      bytes (IHDR, PLTE, IDAT, IEND or others)
- * chunk  =  length bytes
- * crc    =  4      bytes
- */
-PNGReader.prototype.decodeChunk = function(){
-
-	var length = readUInt32(this.readBytes(4), 0);
-
-	if (length < 0){
-		throw new Error('Bad chunk length ' + (0xFFFFFFFF & length));
-	}
-
-	var type = bufferToString(this.readBytes(4));
-	var chunk = this.readBytes(length);
-	var crc = this.readBytes(4);
-
-	switch (type){
-		case 'IHDR': this.decodeIHDR(chunk); break;
-		case 'PLTE': this.decodePLTE(chunk); break;
-		case 'IDAT': this.decodeIDAT(chunk); break;
-		case 'IEND': this.decodeIEND(chunk); break;
-	}
-
-	return type;
-
-};
-
-/**
- * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IHDR
- * http://www.libpng.org/pub/png/spec/1.2/png-1.2-pdg.html#C.IHDR
- *
- * Width               4 bytes
- * Height              4 bytes
- * Bit depth           1 byte
- * Colour type         1 byte
- * Compression method  1 byte
- * Filter method       1 byte
- * Interlace method    1 byte
- */
-PNGReader.prototype.decodeIHDR = function(chunk){
-	var png = this.png;
-
-	png.setWidth(             readUInt32(chunk, 0));
-	png.setHeight(            readUInt32(chunk, 4));
-	png.setBitDepth(          readUInt8(chunk,  8));
-	png.setColorType(         readUInt8(chunk,  9));
-	png.setCompressionMethod( readUInt8(chunk, 10));
-	png.setFilterMethod(      readUInt8(chunk, 11));
-	png.setInterlaceMethod(   readUInt8(chunk, 12));
-
-};
-
-/**
- *
- * http://www.w3.org/TR/PNG/#11PLTE
- */
-PNGReader.prototype.decodePLTE = function(chunk){
-	this.png.setPalette(chunk);
-};
-
-/**
- * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IDAT
- */
-PNGReader.prototype.decodeIDAT = function(chunk){
-	// multiple IDAT chunks will concatenated
-	this.dataChunks.push(chunk);
-};
-
-/**
- * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IEND
- */
-PNGReader.prototype.decodeIEND = function(){
-};
-
-/**
- * Uncompress IDAT chunks
- */
-PNGReader.prototype.decodePixels = function(callback){
-	var png = this.png;
-	var reader = this;
-	var length = 0;
-	var i, j, k, l;
-	for (l = this.dataChunks.length; l--;) length += this.dataChunks[l].length;
-	var data = new Buffer(length);
-	for (i = 0, k = 0, l = this.dataChunks.length; i < l; i++){
-		var chunk = this.dataChunks[i];
-		for (j = 0; j < chunk.length; j++) data[k++] = chunk[j];
-	}
-	inflate(data, function(err, data){
-		if (err) return callback(err);
-
-		try {
-			if (png.getInterlaceMethod() === 0){
-				reader.interlaceNone(data);
-			} else {
-				reader.interlaceAdam7(data);
-			}
-		} catch (e){
-			return callback(e);
-		}
-
-		callback();
-	});
-};
-
-// Different interlace methods
-
-PNGReader.prototype.interlaceNone = function(data){
-
-	var png = this.png;
-
-	// bytes per pixel
-	var bpp = Math.max(1, png.colors * png.bitDepth / 8);
-
-	// color bytes per row
-	var cpr = bpp * png.width;
-
-	var pixels = new Buffer(bpp * png.width * png.height);
-	var scanline;
-	var offset = 0;
-
-	for (var i = 0; i < data.length; i += cpr + 1){
-
-		scanline = slice.call(data, i + 1, i + cpr + 1);
-
-		switch (readUInt8(data, i)){
-			case 0: this.unFilterNone(   scanline, pixels, bpp, offset, cpr); break;
-			case 1: this.unFilterSub(    scanline, pixels, bpp, offset, cpr); break;
-			case 2: this.unFilterUp(     scanline, pixels, bpp, offset, cpr); break;
-			case 3: this.unFilterAverage(scanline, pixels, bpp, offset, cpr); break;
-			case 4: this.unFilterPaeth(  scanline, pixels, bpp, offset, cpr); break;
-			default: throw new Error("unkown filtered scanline");
-		}
-
-		offset += cpr;
-
-	}
-
-	png.pixels = pixels;
-
-};
-
-PNGReader.prototype.interlaceAdam7 = function(data){
-	throw new Error("Adam7 interlacing is not implemented yet");
-};
-
-// Unfiltering
-
-/**
- * No filtering, direct copy
- */
-PNGReader.prototype.unFilterNone = function(scanline, pixels, bpp, of, length){
-	for (var i = 0, to = length; i < to; i++){
-		pixels[of + i] = scanline[i];
-	}
-};
-
-/**
- * The Sub() filter transmits the difference between each byte and the value
- * of the corresponding byte of the prior pixel.
- * Sub(x) = Raw(x) + Raw(x - bpp)
- */
-PNGReader.prototype.unFilterSub = function(scanline, pixels, bpp, of, length){
-	var i = 0;
-	for (; i < bpp; i++) pixels[of + i] = scanline[i];
-	for (; i < length; i++){
-		// Raw(x) + Raw(x - bpp)
-		pixels[of + i] = (scanline[i] + pixels[of + i - bpp]) & 0xFF;
-	}
-};
-
-/**
- * The Up() filter is just like the Sub() filter except that the pixel
- * immediately above the current pixel, rather than just to its left, is used
- * as the predictor.
- * Up(x) = Raw(x) + Prior(x)
- */
-PNGReader.prototype.unFilterUp = function(scanline, pixels, bpp, of, length){
-	var i = 0, byte, prev;
-	// Prior(x) is 0 for all x on the first scanline
-	if ((of - length) < 0) for (; i < length; i++){
-		pixels[of + i] = scanline[i];
-	} else for (; i < length; i++){
-		// Raw(x)
-		byte = scanline[i];
-		// Prior(x)
-		prev = pixels[of + i - length];
-		pixels[of + i] = (byte + prev) & 0xFF;
-	}
-};
-
-/**
- * The Average() filter uses the average of the two neighboring pixels (left
- * and above) to predict the value of a pixel.
- * Average(x) = Raw(x) + floor((Raw(x-bpp)+Prior(x))/2)
- */
-PNGReader.prototype.unFilterAverage = function(scanline, pixels, bpp, of, length){
-	var i = 0, byte, prev, prior;
-	if ((of - length) < 0){
-		// Prior(x) == 0 && Raw(x - bpp) == 0
-		for (; i < bpp; i++){
-			pixels[of + i] = scanline[i];
-		}
-		// Prior(x) == 0 && Raw(x - bpp) != 0 (right shift, prevent doubles)
-		for (; i < length; i++){
-			pixels[of + i] = (scanline[i] + (pixels[of + i - bpp] >> 1)) & 0xFF;
-		}
-	} else {
-		// Prior(x) != 0 && Raw(x - bpp) == 0
-		for (; i < bpp; i++){
-			pixels[of + i] = (scanline[i] + (pixels[of - length + i] >> 1)) & 0xFF;
-		}
-		// Prior(x) != 0 && Raw(x - bpp) != 0
-		for (; i < length; i++){
-			byte = scanline[i];
-			prev = pixels[of + i - bpp];
-			prior = pixels[of + i - length];
-			pixels[of + i] = (byte + (prev + prior >> 1)) & 0xFF;
-		}
-	}
-};
-
-/**
- * The Paeth() filter computes a simple linear function of the three
- * neighboring pixels (left, above, upper left), then chooses as predictor
- * the neighboring pixel closest to the computed value. This technique is due
- * to Alan W. Paeth.
- * Paeth(x) = Raw(x) +
- *            PaethPredictor(Raw(x-bpp), Prior(x), Prior(x-bpp))
- *  function PaethPredictor (a, b, c)
- *  begin
- *       ; a = left, b = above, c = upper left
- *       p := a + b - c        ; initial estimate
- *       pa := abs(p - a)      ; distances to a, b, c
- *       pb := abs(p - b)
- *       pc := abs(p - c)
- *       ; return nearest of a,b,c,
- *       ; breaking ties in order a,b,c.
- *       if pa <= pb AND pa <= pc then return a
- *       else if pb <= pc then return b
- *       else return c
- *  end
- */
-PNGReader.prototype.unFilterPaeth = function(scanline, pixels, bpp, of, length){
-	var i = 0, raw, a, b, c, p, pa, pb, pc, pr;
-	if ((of - length) < 0){
-		// Prior(x) == 0 && Raw(x - bpp) == 0
-		for (; i < bpp; i++){
-			pixels[of + i] = scanline[i];
-		}
-		// Prior(x) == 0 && Raw(x - bpp) != 0
-		// paethPredictor(x, 0, 0) is always x
-		for (; i < length; i++){
-			pixels[of + i] = (scanline[i] + pixels[of + i - bpp]) & 0xFF;
-		}
-	} else {
-		// Prior(x) != 0 && Raw(x - bpp) == 0
-		// paethPredictor(x, 0, 0) is always x
-		for (; i < bpp; i++){
-			pixels[of + i] = (scanline[i] + pixels[of + i - length]) & 0xFF;
-		}
-		// Prior(x) != 0 && Raw(x - bpp) != 0
-		for (; i < length; i++){
-			raw = scanline[i];
-			a = pixels[of + i - bpp];
-			b = pixels[of + i - length];
-			c = pixels[of + i - length - bpp];
-			p = a + b - c;
-			pa = Math.abs(p - a);
-			pb = Math.abs(p - b);
-			pc = Math.abs(p - c);
-			if (pa <= pb && pa <= pc) pr = a;
-			else if (pb <= pc) pr = b;
-			else pr = c;
-			pixels[of + i] = (raw + pr) & 0xFF;
-		}
-	}
-};
-
-/**
- * Parse the PNG file
- *
- * reader.parse(options, callback)
- * OR
- * reader.parse(callback)
- *
- * OPTIONS:
- *    option  | type     | default
- *    ----------------------------
- *    data      boolean    true    should it read the pixel data
- */
-PNGReader.prototype.parse = function(options, callback){
-
-	if (typeof options == 'function') callback = options;
-	if (typeof options != 'object') options = {};
-
-	try {
-
-		this.decodeHeader();
-
-		while (this.i < this.bytes.length){
-			var type = this.decodeChunk();
-			// stop after IHDR chunk, or after IEND
-			if (type == 'IHDR' && options.data === false || type == 'IEND') break;
-		}
-
-		var png = this.png;
-
-		this.decodePixels(function(err){
-			callback(err, png);
-		});
-
-	} catch (e){
-		callback(e);
-	}
-
-};
-
-module.exports = PNGReader;
-
-}).call(this,require("buffer").Buffer)
-},{"./PNG":2,"buffer":15,"zlib":14}],4:[function(require,module,exports){
-const PNGReader = require('png.js');
-
-class Plot {
-
-  constructor(plotElement, dataPath, models) {
-    this.plotElement = plotElement;
-    this.dataPath = dataPath;
-    this.models = models;
-  }
-
-  load() {
-    alert(this.dataPath);
-  }
-
-}
-
-module.exports = Plot;
-
-},{"png.js":3}],5:[function(require,module,exports){
+},{"./plot.js":5}],2:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.4.1
  * https://jquery.com/
@@ -11206,13 +10603,670 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],6:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
+"use strict";
+
+var PNG = function(){
+
+	// initialize all members to keep the same hidden class
+	this.width = 0;
+	this.height = 0;
+	this.bitDepth = 0;
+	this.colorType = 0;
+	this.compressionMethod = 0;
+	this.filterMethod = 0;
+	this.interlaceMethod = 0;
+
+	this.colors = 0;
+	this.alpha = false;
+	this.pixelBits = 0;
+
+	this.palette = null;
+	this.pixels = null;
+
+};
+
+PNG.prototype.getWidth = function(){
+	return this.width;
+};
+
+PNG.prototype.setWidth = function(width){
+	this.width = width;
+};
+
+PNG.prototype.getHeight = function(){
+	return this.height;
+};
+
+PNG.prototype.setHeight = function(height){
+	this.height = height;
+};
+
+PNG.prototype.getBitDepth = function(){
+	return this.bitDepth;
+};
+
+PNG.prototype.setBitDepth = function(bitDepth){
+	if ([2, 4, 8, 16].indexOf(bitDepth) === -1){
+		throw new Error("invalid bith depth " + bitDepth);
+	}
+	this.bitDepth = bitDepth;
+};
+
+PNG.prototype.getColorType = function(){
+	return this.colorType;
+};
+
+PNG.prototype.setColorType = function(colorType){
+
+	//   Color    Allowed    Interpretation
+	//   Type    Bit Depths
+	//
+	//   0       1,2,4,8,16  Each pixel is a grayscale sample.
+	//
+	//   2       8,16        Each pixel is an R,G,B triple.
+	//
+	//   3       1,2,4,8     Each pixel is a palette index;
+	//                       a PLTE chunk must appear.
+	//
+	//   4       8,16        Each pixel is a grayscale sample,
+	//                       followed by an alpha sample.
+	//
+	//   6       8,16        Each pixel is an R,G,B triple,
+	//                       followed by an alpha sample.
+
+	var colors = 0, alpha = false;
+
+	switch (colorType){
+		case 0: colors = 1; break;
+		case 2: colors = 3; break;
+		case 3: colors = 1; break;
+		case 4: colors = 2; alpha = true; break;
+		case 6: colors = 4; alpha = true; break;
+		default: throw new Error("invalid color type");
+	}
+
+	this.colors = colors;
+	this.alpha = alpha;
+	this.colorType = colorType;
+};
+
+PNG.prototype.getCompressionMethod = function(){
+	return this.compressionMethod;
+};
+
+PNG.prototype.setCompressionMethod = function(compressionMethod){
+	if (compressionMethod !== 0){
+		throw new Error("invalid compression method " + compressionMethod);
+	}
+	this.compressionMethod = compressionMethod;
+};
+
+PNG.prototype.getFilterMethod = function(){
+	return this.filterMethod;
+};
+
+PNG.prototype.setFilterMethod = function(filterMethod){
+	if (filterMethod !== 0){
+		throw new Error("invalid filter method " + filterMethod);
+	}
+	this.filterMethod = filterMethod;
+};
+
+PNG.prototype.getInterlaceMethod = function(){
+	return this.interlaceMethod;
+};
+
+PNG.prototype.setInterlaceMethod = function(interlaceMethod){
+	if (interlaceMethod !== 0 && interlaceMethod !== 1){
+		throw new Error("invalid interlace method " + interlaceMethod);
+	}
+	this.interlaceMethod = interlaceMethod;
+};
+
+PNG.prototype.setPalette = function(palette){
+	if (palette.length % 3 !== 0){
+		throw new Error("incorrect PLTE chunk length");
+	}
+	if (palette.length > (Math.pow(2, this.bitDepth) * 3)){
+		throw new Error("palette has more colors than 2^bitdepth");
+	}
+	this.palette = palette;
+};
+
+PNG.prototype.getPalette = function(){
+	return this.palette;
+};
+
+/**
+ * get the pixel color on a certain location in a normalized way
+ * result is an array: [red, green, blue, alpha]
+ */
+PNG.prototype.getPixel = function(x, y){
+	if (!this.pixels) throw new Error("pixel data is empty");
+	if (x >= this.width || y >= this.height){
+		throw new Error("x,y position out of bound");
+	}
+	var i = this.colors * this.bitDepth / 8 * (y * this.width + x);
+	var pixels = this.pixels;
+
+	switch (this.colorType){
+		case 0: return [pixels[i], pixels[i], pixels[i], 255];
+		case 2: return [pixels[i], pixels[i + 1], pixels[i + 2], 255];
+		case 3: return [
+			this.palette[pixels[i] * 3 + 0],
+			this.palette[pixels[i] * 3 + 1],
+			this.palette[pixels[i] * 3 + 2],
+			255];
+		case 4: return [pixels[i], pixels[i], pixels[i], pixels[i + 1]];
+		case 6: return [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]];
+	}
+};
+
+module.exports = PNG;
+
+},{}],4:[function(require,module,exports){
+(function (Buffer){
+/*global Uint8Array:true ArrayBuffer:true */
+"use strict";
+
+var zlib = require('zlib');
+var PNG = require('./PNG');
+
+var inflate = function(data, callback){
+	return zlib.inflate(new Buffer(data), callback);
+};
+
+var slice = Array.prototype.slice;
+var toString = Object.prototype.toString;
+
+function equalBytes(a, b){
+	if (a.length != b.length) return false;
+	for (var l = a.length; l--;) if (a[l] != b[l]) return false;
+	return true;
+}
+
+function readUInt32(buffer, offset){
+	return (buffer[offset] << 24) +
+		(buffer[offset + 1] << 16) +
+		(buffer[offset + 2] << 8) +
+		(buffer[offset + 3] << 0);
+}
+
+function readUInt16(buffer, offset){
+	return (buffer[offset + 1] << 8) + (buffer[offset] << 0);
+}
+
+function readUInt8(buffer, offset){
+	return buffer[offset] << 0;
+}
+
+function bufferToString(buffer){
+	var str = '';
+	for (var i = 0; i < buffer.length; i++){
+		str += String.fromCharCode(buffer[i]);
+	}
+	return str;
+}
+
+var PNGReader = function(bytes){
+
+	if (typeof bytes == 'string'){
+		var bts = bytes;
+		bytes = new Array(bts.length);
+		for (var i = 0, l = bts.length; i < l; i++){
+			bytes[i] = bts[i].charCodeAt(0);
+		}
+	} else {
+		var type = toString.call(bytes).slice(8, -1);
+		if (type == 'ArrayBuffer') bytes = new Uint8Array(bytes);
+	}
+
+	// current pointer
+	this.i = 0;
+	// bytes buffer
+	this.bytes = bytes;
+	// Output object
+	this.png = new PNG();
+
+	this.dataChunks = [];
+
+};
+
+PNGReader.prototype.readBytes = function(length){
+	var end = this.i + length;
+	if (end > this.bytes.length){
+		throw new Error('Unexpectedly reached end of file');
+	}
+	var bytes = slice.call(this.bytes, this.i, end);
+	this.i = end;
+	return bytes;
+};
+
+/**
+ * http://www.w3.org/TR/2003/REC-PNG-20031110/#5PNG-file-signature
+ */
+PNGReader.prototype.decodeHeader = function(){
+
+	if (this.i !== 0){
+		throw new Error('file pointer should be at 0 to read the header');
+	}
+
+	var header = this.readBytes(8);
+
+	if (!equalBytes(header, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])){
+		throw new Error('invalid PNGReader file (bad signature)');
+	}
+
+	this.header = header;
+
+};
+
+/**
+ * http://www.w3.org/TR/2003/REC-PNG-20031110/#5Chunk-layout
+ *
+ * length =  4      bytes
+ * type   =  4      bytes (IHDR, PLTE, IDAT, IEND or others)
+ * chunk  =  length bytes
+ * crc    =  4      bytes
+ */
+PNGReader.prototype.decodeChunk = function(){
+
+	var length = readUInt32(this.readBytes(4), 0);
+
+	if (length < 0){
+		throw new Error('Bad chunk length ' + (0xFFFFFFFF & length));
+	}
+
+	var type = bufferToString(this.readBytes(4));
+	var chunk = this.readBytes(length);
+	var crc = this.readBytes(4);
+
+	switch (type){
+		case 'IHDR': this.decodeIHDR(chunk); break;
+		case 'PLTE': this.decodePLTE(chunk); break;
+		case 'IDAT': this.decodeIDAT(chunk); break;
+		case 'IEND': this.decodeIEND(chunk); break;
+	}
+
+	return type;
+
+};
+
+/**
+ * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IHDR
+ * http://www.libpng.org/pub/png/spec/1.2/png-1.2-pdg.html#C.IHDR
+ *
+ * Width               4 bytes
+ * Height              4 bytes
+ * Bit depth           1 byte
+ * Colour type         1 byte
+ * Compression method  1 byte
+ * Filter method       1 byte
+ * Interlace method    1 byte
+ */
+PNGReader.prototype.decodeIHDR = function(chunk){
+	var png = this.png;
+
+	png.setWidth(             readUInt32(chunk, 0));
+	png.setHeight(            readUInt32(chunk, 4));
+	png.setBitDepth(          readUInt8(chunk,  8));
+	png.setColorType(         readUInt8(chunk,  9));
+	png.setCompressionMethod( readUInt8(chunk, 10));
+	png.setFilterMethod(      readUInt8(chunk, 11));
+	png.setInterlaceMethod(   readUInt8(chunk, 12));
+
+};
+
+/**
+ *
+ * http://www.w3.org/TR/PNG/#11PLTE
+ */
+PNGReader.prototype.decodePLTE = function(chunk){
+	this.png.setPalette(chunk);
+};
+
+/**
+ * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IDAT
+ */
+PNGReader.prototype.decodeIDAT = function(chunk){
+	// multiple IDAT chunks will concatenated
+	this.dataChunks.push(chunk);
+};
+
+/**
+ * http://www.w3.org/TR/2003/REC-PNG-20031110/#11IEND
+ */
+PNGReader.prototype.decodeIEND = function(){
+};
+
+/**
+ * Uncompress IDAT chunks
+ */
+PNGReader.prototype.decodePixels = function(callback){
+	var png = this.png;
+	var reader = this;
+	var length = 0;
+	var i, j, k, l;
+	for (l = this.dataChunks.length; l--;) length += this.dataChunks[l].length;
+	var data = new Buffer(length);
+	for (i = 0, k = 0, l = this.dataChunks.length; i < l; i++){
+		var chunk = this.dataChunks[i];
+		for (j = 0; j < chunk.length; j++) data[k++] = chunk[j];
+	}
+	inflate(data, function(err, data){
+		if (err) return callback(err);
+
+		try {
+			if (png.getInterlaceMethod() === 0){
+				reader.interlaceNone(data);
+			} else {
+				reader.interlaceAdam7(data);
+			}
+		} catch (e){
+			return callback(e);
+		}
+
+		callback();
+	});
+};
+
+// Different interlace methods
+
+PNGReader.prototype.interlaceNone = function(data){
+
+	var png = this.png;
+
+	// bytes per pixel
+	var bpp = Math.max(1, png.colors * png.bitDepth / 8);
+
+	// color bytes per row
+	var cpr = bpp * png.width;
+
+	var pixels = new Buffer(bpp * png.width * png.height);
+	var scanline;
+	var offset = 0;
+
+	for (var i = 0; i < data.length; i += cpr + 1){
+
+		scanline = slice.call(data, i + 1, i + cpr + 1);
+
+		switch (readUInt8(data, i)){
+			case 0: this.unFilterNone(   scanline, pixels, bpp, offset, cpr); break;
+			case 1: this.unFilterSub(    scanline, pixels, bpp, offset, cpr); break;
+			case 2: this.unFilterUp(     scanline, pixels, bpp, offset, cpr); break;
+			case 3: this.unFilterAverage(scanline, pixels, bpp, offset, cpr); break;
+			case 4: this.unFilterPaeth(  scanline, pixels, bpp, offset, cpr); break;
+			default: throw new Error("unkown filtered scanline");
+		}
+
+		offset += cpr;
+
+	}
+
+	png.pixels = pixels;
+
+};
+
+PNGReader.prototype.interlaceAdam7 = function(data){
+	throw new Error("Adam7 interlacing is not implemented yet");
+};
+
+// Unfiltering
+
+/**
+ * No filtering, direct copy
+ */
+PNGReader.prototype.unFilterNone = function(scanline, pixels, bpp, of, length){
+	for (var i = 0, to = length; i < to; i++){
+		pixels[of + i] = scanline[i];
+	}
+};
+
+/**
+ * The Sub() filter transmits the difference between each byte and the value
+ * of the corresponding byte of the prior pixel.
+ * Sub(x) = Raw(x) + Raw(x - bpp)
+ */
+PNGReader.prototype.unFilterSub = function(scanline, pixels, bpp, of, length){
+	var i = 0;
+	for (; i < bpp; i++) pixels[of + i] = scanline[i];
+	for (; i < length; i++){
+		// Raw(x) + Raw(x - bpp)
+		pixels[of + i] = (scanline[i] + pixels[of + i - bpp]) & 0xFF;
+	}
+};
+
+/**
+ * The Up() filter is just like the Sub() filter except that the pixel
+ * immediately above the current pixel, rather than just to its left, is used
+ * as the predictor.
+ * Up(x) = Raw(x) + Prior(x)
+ */
+PNGReader.prototype.unFilterUp = function(scanline, pixels, bpp, of, length){
+	var i = 0, byte, prev;
+	// Prior(x) is 0 for all x on the first scanline
+	if ((of - length) < 0) for (; i < length; i++){
+		pixels[of + i] = scanline[i];
+	} else for (; i < length; i++){
+		// Raw(x)
+		byte = scanline[i];
+		// Prior(x)
+		prev = pixels[of + i - length];
+		pixels[of + i] = (byte + prev) & 0xFF;
+	}
+};
+
+/**
+ * The Average() filter uses the average of the two neighboring pixels (left
+ * and above) to predict the value of a pixel.
+ * Average(x) = Raw(x) + floor((Raw(x-bpp)+Prior(x))/2)
+ */
+PNGReader.prototype.unFilterAverage = function(scanline, pixels, bpp, of, length){
+	var i = 0, byte, prev, prior;
+	if ((of - length) < 0){
+		// Prior(x) == 0 && Raw(x - bpp) == 0
+		for (; i < bpp; i++){
+			pixels[of + i] = scanline[i];
+		}
+		// Prior(x) == 0 && Raw(x - bpp) != 0 (right shift, prevent doubles)
+		for (; i < length; i++){
+			pixels[of + i] = (scanline[i] + (pixels[of + i - bpp] >> 1)) & 0xFF;
+		}
+	} else {
+		// Prior(x) != 0 && Raw(x - bpp) == 0
+		for (; i < bpp; i++){
+			pixels[of + i] = (scanline[i] + (pixels[of - length + i] >> 1)) & 0xFF;
+		}
+		// Prior(x) != 0 && Raw(x - bpp) != 0
+		for (; i < length; i++){
+			byte = scanline[i];
+			prev = pixels[of + i - bpp];
+			prior = pixels[of + i - length];
+			pixels[of + i] = (byte + (prev + prior >> 1)) & 0xFF;
+		}
+	}
+};
+
+/**
+ * The Paeth() filter computes a simple linear function of the three
+ * neighboring pixels (left, above, upper left), then chooses as predictor
+ * the neighboring pixel closest to the computed value. This technique is due
+ * to Alan W. Paeth.
+ * Paeth(x) = Raw(x) +
+ *            PaethPredictor(Raw(x-bpp), Prior(x), Prior(x-bpp))
+ *  function PaethPredictor (a, b, c)
+ *  begin
+ *       ; a = left, b = above, c = upper left
+ *       p := a + b - c        ; initial estimate
+ *       pa := abs(p - a)      ; distances to a, b, c
+ *       pb := abs(p - b)
+ *       pc := abs(p - c)
+ *       ; return nearest of a,b,c,
+ *       ; breaking ties in order a,b,c.
+ *       if pa <= pb AND pa <= pc then return a
+ *       else if pb <= pc then return b
+ *       else return c
+ *  end
+ */
+PNGReader.prototype.unFilterPaeth = function(scanline, pixels, bpp, of, length){
+	var i = 0, raw, a, b, c, p, pa, pb, pc, pr;
+	if ((of - length) < 0){
+		// Prior(x) == 0 && Raw(x - bpp) == 0
+		for (; i < bpp; i++){
+			pixels[of + i] = scanline[i];
+		}
+		// Prior(x) == 0 && Raw(x - bpp) != 0
+		// paethPredictor(x, 0, 0) is always x
+		for (; i < length; i++){
+			pixels[of + i] = (scanline[i] + pixels[of + i - bpp]) & 0xFF;
+		}
+	} else {
+		// Prior(x) != 0 && Raw(x - bpp) == 0
+		// paethPredictor(x, 0, 0) is always x
+		for (; i < bpp; i++){
+			pixels[of + i] = (scanline[i] + pixels[of + i - length]) & 0xFF;
+		}
+		// Prior(x) != 0 && Raw(x - bpp) != 0
+		for (; i < length; i++){
+			raw = scanline[i];
+			a = pixels[of + i - bpp];
+			b = pixels[of + i - length];
+			c = pixels[of + i - length - bpp];
+			p = a + b - c;
+			pa = Math.abs(p - a);
+			pb = Math.abs(p - b);
+			pc = Math.abs(p - c);
+			if (pa <= pb && pa <= pc) pr = a;
+			else if (pb <= pc) pr = b;
+			else pr = c;
+			pixels[of + i] = (raw + pr) & 0xFF;
+		}
+	}
+};
+
+/**
+ * Parse the PNG file
+ *
+ * reader.parse(options, callback)
+ * OR
+ * reader.parse(callback)
+ *
+ * OPTIONS:
+ *    option  | type     | default
+ *    ----------------------------
+ *    data      boolean    true    should it read the pixel data
+ */
+PNGReader.prototype.parse = function(options, callback){
+
+	if (typeof options == 'function') callback = options;
+	if (typeof options != 'object') options = {};
+
+	try {
+
+		this.decodeHeader();
+
+		while (this.i < this.bytes.length){
+			var type = this.decodeChunk();
+			// stop after IHDR chunk, or after IEND
+			if (type == 'IHDR' && options.data === false || type == 'IEND') break;
+		}
+
+		var png = this.png;
+
+		this.decodePixels(function(err){
+			callback(err, png);
+		});
+
+	} catch (e){
+		callback(e);
+	}
+
+};
+
+module.exports = PNGReader;
+
+}).call(this,require("buffer").Buffer)
+},{"./PNG":3,"buffer":16,"zlib":15}],5:[function(require,module,exports){
+const $ = require("jquery");
+const PNGReader = require('png.js');
+
+class Plot {
+
+  constructor(plotElement, dataPath, models) {
+    // save parameters
+    this.plotElement = plotElement;
+    this.dataPath = dataPath;
+    this.models = models;
+
+    // initialize current timestep
+    this.timestep = 0;
+  }
+
+  load() {
+    // load a data point
+    let path = `data/layer-0_timestep-${this.timestep}.png`;
+    $.ajax({
+      url: path,
+      xhrFields: {
+        responseType: 'arraybuffer'
+      },
+      success: (result) => {
+        // parse it as a PNG
+        var reader = new PNGReader(result);
+        reader.parse((err, png) => {
+          if (err) throw err;
+
+          let width = png["width"];
+          let height = png["height"];
+
+          var z = [];
+          
+          for (var i = 0; i < height; i++) {
+            z[i] = [];
+            for (var j = 0; j < width; j++) {
+              z[i][j] = png["pixels"][(i * width) + j] / 255;
+            }
+          }
+
+          var data = [
+            {
+              z: z,
+              type: 'heatmap',
+              zmin: 0,
+              zmax: 1,
+              zauto: false
+            }
+          ];
+
+          if (this.timestep == 0) {
+            Plotly.plot(this.plotElement, data);
+          }
+          else {
+            // Plotly.restyle(plotElement, { z: [data["z"]] });
+            Plotly.newPlot(this.plotElement, data);
+          }
+        });
+      },
+      error: (err) => {
+        throw err;
+      }
+    });
+  }
+
+}
+
+module.exports = Plot;
+
+},{"jquery":2,"png.js":4}],6:[function(require,module,exports){
+arguments[4][2][0].apply(exports,arguments)
+},{"dup":2}],7:[function(require,module,exports){
 const $ = require("jquery");
 const Plot = require('cerebro3').Plot
 
 $(document).ready(() => {
   // initialize plot
-  const plot = new Plot($("#plot"), "/data", [
+  const plot = new Plot($("#plot")[0], "/data", [
     "DenseKWinners",
     "DenseReLU",
     "SparseKWinners"
@@ -11222,7 +11276,7 @@ $(document).ready(() => {
   plot.load();
 })
 
-},{"cerebro3":1,"jquery":5}],7:[function(require,module,exports){
+},{"cerebro3":1,"jquery":6}],8:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -11732,7 +11786,7 @@ var objectKeys = Object.keys || function (obj) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"object-assign":22,"util/":10}],8:[function(require,module,exports){
+},{"object-assign":23,"util/":11}],9:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -11757,14 +11811,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -12354,7 +12408,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":9,"_process":35,"inherits":8}],11:[function(require,module,exports){
+},{"./support/isBuffer":10,"_process":36,"inherits":9}],12:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -12508,9 +12562,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],12:[function(require,module,exports){
-
 },{}],13:[function(require,module,exports){
+
+},{}],14:[function(require,module,exports){
 (function (process,Buffer){
 'use strict';
 /* eslint camelcase: "off" */
@@ -12922,7 +12976,7 @@ Zlib.prototype._reset = function () {
 
 exports.Zlib = Zlib;
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":35,"assert":7,"buffer":15,"pako/lib/zlib/constants":25,"pako/lib/zlib/deflate.js":27,"pako/lib/zlib/inflate.js":29,"pako/lib/zlib/zstream":33}],14:[function(require,module,exports){
+},{"_process":36,"assert":8,"buffer":16,"pako/lib/zlib/constants":26,"pako/lib/zlib/deflate.js":28,"pako/lib/zlib/inflate.js":30,"pako/lib/zlib/zstream":34}],15:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13534,7 +13588,7 @@ util.inherits(DeflateRaw, Zlib);
 util.inherits(InflateRaw, Zlib);
 util.inherits(Unzip, Zlib);
 }).call(this,require('_process'))
-},{"./binding":13,"_process":35,"assert":7,"buffer":15,"stream":51,"util":56}],15:[function(require,module,exports){
+},{"./binding":14,"_process":36,"assert":8,"buffer":16,"stream":52,"util":57}],16:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -15337,7 +15391,7 @@ var hexSliceLookupTable = (function () {
 })()
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":11,"buffer":15,"ieee754":18}],16:[function(require,module,exports){
+},{"base64-js":12,"buffer":16,"ieee754":19}],17:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -15448,7 +15502,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":20}],17:[function(require,module,exports){
+},{"../../is-buffer/index.js":21}],18:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -15973,7 +16027,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -16059,7 +16113,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -16088,7 +16142,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -16111,14 +16165,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 /*
 object-assign
 (c) Sindre Sorhus
@@ -16210,7 +16264,7 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 	return to;
 };
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 'use strict';
 
 
@@ -16317,7 +16371,7 @@ exports.setTyped = function (on) {
 
 exports.setTyped(TYPED_OK);
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict';
 
 // Note: adler32 takes 12% for level 0 and 2% for level 6.
@@ -16370,7 +16424,7 @@ function adler32(adler, buf, len, pos) {
 
 module.exports = adler32;
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -16440,7 +16494,7 @@ module.exports = {
   //Z_NULL:                 null // Use -1 or null inline, depending on var type
 };
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict';
 
 // Note: we can't get significant speed boost here.
@@ -16501,7 +16555,7 @@ function crc32(crc, buf, len, pos) {
 
 module.exports = crc32;
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -18377,7 +18431,7 @@ exports.deflatePrime = deflatePrime;
 exports.deflateTune = deflateTune;
 */
 
-},{"../utils/common":23,"./adler32":24,"./crc32":26,"./messages":31,"./trees":32}],28:[function(require,module,exports){
+},{"../utils/common":24,"./adler32":25,"./crc32":27,"./messages":32,"./trees":33}],29:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -18724,7 +18778,7 @@ module.exports = function inflate_fast(strm, start) {
   return;
 };
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -20282,7 +20336,7 @@ exports.inflateSyncPoint = inflateSyncPoint;
 exports.inflateUndermine = inflateUndermine;
 */
 
-},{"../utils/common":23,"./adler32":24,"./crc32":26,"./inffast":28,"./inftrees":30}],30:[function(require,module,exports){
+},{"../utils/common":24,"./adler32":25,"./crc32":27,"./inffast":29,"./inftrees":31}],31:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -20627,7 +20681,7 @@ module.exports = function inflate_table(type, lens, lens_index, codes, table, ta
   return 0;
 };
 
-},{"../utils/common":23}],31:[function(require,module,exports){
+},{"../utils/common":24}],32:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -20661,7 +20715,7 @@ module.exports = {
   '-6':   'incompatible version' /* Z_VERSION_ERROR (-6) */
 };
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -21885,7 +21939,7 @@ exports._tr_flush_block  = _tr_flush_block;
 exports._tr_tally = _tr_tally;
 exports._tr_align = _tr_align;
 
-},{"../utils/common":23}],33:[function(require,module,exports){
+},{"../utils/common":24}],34:[function(require,module,exports){
 'use strict';
 
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -21934,7 +21988,7 @@ function ZStream() {
 
 module.exports = ZStream;
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -21983,7 +22037,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":35}],35:[function(require,module,exports){
+},{"_process":36}],36:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -22169,10 +22223,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":37}],37:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":38}],38:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22304,7 +22358,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":39,"./_stream_writable":41,"core-util-is":16,"inherits":19,"process-nextick-args":34}],38:[function(require,module,exports){
+},{"./_stream_readable":40,"./_stream_writable":42,"core-util-is":17,"inherits":20,"process-nextick-args":35}],39:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22352,7 +22406,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":40,"core-util-is":16,"inherits":19}],39:[function(require,module,exports){
+},{"./_stream_transform":41,"core-util-is":17,"inherits":20}],40:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -23374,7 +23428,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":37,"./internal/streams/BufferList":42,"./internal/streams/destroy":43,"./internal/streams/stream":44,"_process":35,"core-util-is":16,"events":17,"inherits":19,"isarray":21,"process-nextick-args":34,"safe-buffer":45,"string_decoder/":46,"util":12}],40:[function(require,module,exports){
+},{"./_stream_duplex":38,"./internal/streams/BufferList":43,"./internal/streams/destroy":44,"./internal/streams/stream":45,"_process":36,"core-util-is":17,"events":18,"inherits":20,"isarray":22,"process-nextick-args":35,"safe-buffer":46,"string_decoder/":47,"util":13}],41:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23589,7 +23643,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":37,"core-util-is":16,"inherits":19}],41:[function(require,module,exports){
+},{"./_stream_duplex":38,"core-util-is":17,"inherits":20}],42:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -24279,7 +24333,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":37,"./internal/streams/destroy":43,"./internal/streams/stream":44,"_process":35,"core-util-is":16,"inherits":19,"process-nextick-args":34,"safe-buffer":45,"timers":52,"util-deprecate":53}],42:[function(require,module,exports){
+},{"./_stream_duplex":38,"./internal/streams/destroy":44,"./internal/streams/stream":45,"_process":36,"core-util-is":17,"inherits":20,"process-nextick-args":35,"safe-buffer":46,"timers":53,"util-deprecate":54}],43:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -24359,7 +24413,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":45,"util":12}],43:[function(require,module,exports){
+},{"safe-buffer":46,"util":13}],44:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -24434,10 +24488,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":34}],44:[function(require,module,exports){
+},{"process-nextick-args":35}],45:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":17}],45:[function(require,module,exports){
+},{"events":18}],46:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -24501,7 +24555,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":15}],46:[function(require,module,exports){
+},{"buffer":16}],47:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -24798,10 +24852,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":45}],47:[function(require,module,exports){
+},{"safe-buffer":46}],48:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":48}],48:[function(require,module,exports){
+},{"./readable":49}],49:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -24810,13 +24864,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":37,"./lib/_stream_passthrough.js":38,"./lib/_stream_readable.js":39,"./lib/_stream_transform.js":40,"./lib/_stream_writable.js":41}],49:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":38,"./lib/_stream_passthrough.js":39,"./lib/_stream_readable.js":40,"./lib/_stream_transform.js":41,"./lib/_stream_writable.js":42}],50:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":48}],50:[function(require,module,exports){
+},{"./readable":49}],51:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":41}],51:[function(require,module,exports){
+},{"./lib/_stream_writable.js":42}],52:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -24945,7 +24999,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":17,"inherits":19,"readable-stream/duplex.js":36,"readable-stream/passthrough.js":47,"readable-stream/readable.js":48,"readable-stream/transform.js":49,"readable-stream/writable.js":50}],52:[function(require,module,exports){
+},{"events":18,"inherits":20,"readable-stream/duplex.js":37,"readable-stream/passthrough.js":48,"readable-stream/readable.js":49,"readable-stream/transform.js":50,"readable-stream/writable.js":51}],53:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -25024,7 +25078,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":35,"timers":52}],53:[function(require,module,exports){
+},{"process/browser.js":36,"timers":53}],54:[function(require,module,exports){
 (function (global){
 
 /**
@@ -25095,10 +25149,10 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],54:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8}],55:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
 },{"dup":9}],56:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"./support/isBuffer":55,"_process":35,"dup":10,"inherits":54}]},{},[6]);
+},{"dup":10}],57:[function(require,module,exports){
+arguments[4][11][0].apply(exports,arguments)
+},{"./support/isBuffer":56,"_process":36,"dup":11,"inherits":55}]},{},[7]);
