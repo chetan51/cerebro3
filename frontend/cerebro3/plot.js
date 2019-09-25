@@ -9,13 +9,14 @@ class Plot {
     this.dataPath = dataPath;
     this.models = models;
 
-    // initialize current timestep
+    // initialize properties
     this.timestep = 0;
+    this.layerIndex = 0;
   }
 
   load() {
     // load a data point
-    let path = `data/layer-0_timestep-${this.timestep}.png`;
+    let path = `data/layer-${this.layerIndex}_timestep-${this.timestep}.png`;
     $.ajax({
       url: path,
       xhrFields: {
