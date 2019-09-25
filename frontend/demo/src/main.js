@@ -18,7 +18,6 @@ $(document).ready(() => {
       "Hidden2->Hidden3",
       "Hidden3->Output"
     ],
-    2300,
-    4
+    2300
   );
 })

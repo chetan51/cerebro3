@@ -35,6 +35,7 @@ class Plot {
     class Choices {
       constructor() {
         this.layer = layers[0];
+        this.time = 0;
       }
     }
     this.userChoices = new Choices();
@@ -43,12 +44,25 @@ class Plot {
     let layerController = this.gui.add(this.userChoices, 'layer', this.layers);
 
     // subscribe to events
-    layerController.onChange((value) => {
+    layerController.onFinishChange((value) => {
       // update layer
       this.layerIndex = this.layers.indexOf(value);
 
       // update plot
       this.update(true);
+    });
+
+    // add time slider
+    let maxTime = Math.floor(this.numTimesteps / this.timestepInterval);
+    let timeController = this.gui.add(this.userChoices, 'time', 0, maxTime).step(1);
+
+    // subscribe to events
+    timeController.onFinishChange((value) => {
+      // update timestep
+      this.timestep = value * this.timestepInterval;
+
+      // update plot
+      this.update();
     });
   }
 
