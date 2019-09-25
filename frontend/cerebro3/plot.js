@@ -40,10 +40,10 @@ class Plot {
         this.prev = () => {};
       }
     }
-    this.userChoices = new Choices();
+    let userChoices = new Choices();
 
     // add layers dropdown
-    let layerController = this.gui.add(this.userChoices, 'layer', this.layers);
+    let layerController = this.gui.add(userChoices, 'layer', this.layers);
 
     // subscribe to events
     layerController.onFinishChange((value) => {
@@ -56,7 +56,7 @@ class Plot {
 
     // add time slider
     let maxTime = Math.floor(this.numTimesteps / this.timestepInterval);
-    let timeController = this.gui.add(this.userChoices, 'time', 0, maxTime).step(1);
+    let timeController = this.gui.add(userChoices, 'time', 0, maxTime).step(1);
 
     let onTimeChanged = (value) => {
       // update timestep
@@ -70,25 +70,25 @@ class Plot {
     timeController.onFinishChange(onTimeChanged);
 
     // add next time button
-    let nextTimeController = this.gui.add(this.userChoices, 'next');
+    let nextTimeController = this.gui.add(userChoices, 'next');
     // subscribe to events
     nextTimeController.onChange((value) => {
       // update UI
-      timeController.setValue(timeController.getValue() + 1);
+      timeController.setValue(userChoices.time + 1);
 
       // trigger event
-      onTimeChanged(timeController.getValue());
+      onTimeChanged(userChoices.time);
     });
 
     // add prev time button
-    let prevTimeController = this.gui.add(this.userChoices, 'prev');
+    let prevTimeController = this.gui.add(userChoices, 'prev');
     // subscribe to events
     prevTimeController.onChange((value) => {
       // update UI
-      timeController.setValue(timeController.getValue() - 1);
+      timeController.setValue(userChoices.time - 1);
 
       // trigger event
-      onTimeChanged(timeController.getValue());
+      onTimeChanged(userChoices.time);
     });
   }
 
