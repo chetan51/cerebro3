@@ -13792,7 +13792,7 @@ class Plot {
       this.timestep = value * this.timestepInterval;
 
       // update plot
-      this.update();
+      this.update(false);
     }
 
     // subscribe to events
