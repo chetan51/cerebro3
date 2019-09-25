@@ -1,21 +1,55 @@
 const $ = require("jquery");
 const PNGReader = require('png.js');
+const dat = require('dat.gui');
 
 class Plot {
 
-  constructor(plotElement, dataPath, models, timestepInterval=100) {
+  constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps, timestepInterval=100) {
     // save parameters
     this.plotElement = plotElement;
+    this.guiElement = guiElement;
     this.dataPath = dataPath;
     this.models = models;
+    this.layers = layers;
+    this.numTimesteps = numTimesteps;
     this.timestepInterval = timestepInterval;
 
     // initialize properties
     this.timestep = 0;
     this.layerIndex = 0;
 
+    // init GUI
+    this.initGui();
+
     // update plot
     this.update();
+  }
+
+  initGui() {
+    // create GUI
+    this.gui = new dat.GUI({autoPlace: false});
+    this.guiElement.appendChild(this.gui.domElement);
+
+    // create dictionary of user choices
+    let layers = this.layers;
+    class Choices {
+      constructor() {
+        this.layer = layers[0];
+      }
+    }
+    this.userChoices = new Choices();
+
+    // add layers dropdown
+    let layerController = this.gui.add(this.userChoices, 'layer', this.layers);
+
+    // subscribe to events
+    layerController.onChange((value) => {
+      // update layer
+      this.layerIndex = this.layers.indexOf(value);
+
+      // update plot
+      this.update(true);
+    });
   }
 
   update(newPlot=true) {

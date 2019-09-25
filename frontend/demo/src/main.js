@@ -3,17 +3,22 @@ const Plot = require('cerebro3').Plot
 
 $(document).ready(() => {
   // initialize plot
-  document.plot = new Plot($("#plot")[0], "/data", [
-    "DenseReLU",
-    "DenseKWinners",
-    "SparseKWinners"
-  ]);
+  let plot = new Plot(
+    $("#plot")[0],
+    $("#plotGUI")[0],
+    "/data",
+    [
+      "DenseReLU",
+      "DenseKWinners",
+      "SparseKWinners"
+    ],
+    [
+      "Input->Hidden1",
+      "Hidden1->Hidden2",
+      "Hidden2->Hidden3",
+      "Hidden3->Output"
+    ],
+    2300,
+    4
+  );
 })
-
-document.nextTimestep = function() {
-  document.plot.nextTimestep();
-}
-
-document.nextLayer = function() {
-  document.plot.nextLayer();
-}
