@@ -13733,7 +13733,8 @@ const dat = require('dat.gui');
 
 class Plot {
 
-  constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps, timestepInterval=100) {
+  constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps,
+              timestepInterval=100, minWeight=-0.5, maxWeight=0.5) {
     // save parameters
     this.plotElement = plotElement;
     this.guiElement = guiElement;
@@ -13742,13 +13743,15 @@ class Plot {
     this.layers = layers;
     this.numTimesteps = numTimesteps;
     this.timestepInterval = timestepInterval;
+    this.minWeight = minWeight;
+    this.maxWeight = maxWeight;
 
     // initialize properties
     this.timestep = 0;
     this.layerIndex = 0;
 
     // set parameters
-    this.minPlayingInterval = 500;  // milliseconds
+    this.minPlayingInterval = 10;  // milliseconds
 
     // init GUI
     this.initGui();
@@ -13894,7 +13897,9 @@ class Plot {
         for (var i = 0; i < height; i++) {
           z[i] = [];
           for (var j = 0; j < width; j++) {
-            z[i][j] = (data["pixels"][(i * width) + j] / 255) - 0.5;
+            let pixel = data["pixels"][(i * width) + j];
+            // convert from range [0, 255] to [-1, 1]
+            z[i][j] = ((pixel / 255) * 2) - 1;
           }
         }
 
@@ -13902,8 +13907,8 @@ class Plot {
           name: model,
           z: z,
           type: 'heatmap',
-          // zmin: 0,
-          // zmax: 1,
+          zmin: this.minWeight,
+          zmax: this.maxWeight,
           zauto: false,
           xaxis: `x${modelIndex+1}`,
           yaxis: `y${modelIndex+1}`,
@@ -13927,6 +13932,8 @@ class Plot {
 
       if (newPlot) {
         Plotly.newPlot(this.plotElement, traces, layout);
+
+        this.initPlotSync();
       }
       else {
         // convert traces to a data update
@@ -13941,6 +13948,22 @@ class Plot {
         Plotly.restyle(this.plotElement, update, layout);
       }
     });
+  }
+
+  initPlotSync() {
+    // upon plot relayout...
+    this.plotElement.on("plotly_relayout", (eventData) => {
+      if (eventData["syncUpdate"] == false) return;
+
+      console.log(eventData);
+      console.log(this.plotElement.layout);
+      // Plotly.relayout(this.plotElement, eventData);
+
+      let layoutUpdate = eventData;
+      layoutUpdate["syncUpdate"] = false;
+
+      Plotly.relayout(this.plotElement, layoutUpdate);
+    })
   }
 
 }
@@ -13970,7 +13993,10 @@ $(document).ready(() => {
       "Hidden2->Hidden3",
       "Hidden3->Output"
     ],
-    2300
+    2300,
+    timestepInterval=10,
+    minWeight=-0.3,
+    maxWeight=0.3
   );
 })
 

@@ -18,6 +18,9 @@ $(document).ready(() => {
       "Hidden2->Hidden3",
       "Hidden3->Output"
     ],
-    2300
+    2300,
+    timestepInterval=10,
+    minWeight=-0.3,
+    maxWeight=0.3
   );
 })
