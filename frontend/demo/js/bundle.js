@@ -13747,6 +13747,9 @@ class Plot {
     this.timestep = 0;
     this.layerIndex = 0;
 
+    // set parameters
+    this.minPlayingInterval = 500;  // milliseconds
+
     // init GUI
     this.initGui();
 
@@ -13789,6 +13792,7 @@ class Plot {
 
           onTimeChanged(this.time);
         };
+        this.playing = false;
       }
     }
     let userChoices = new Choices();
@@ -13816,6 +13820,32 @@ class Plot {
 
     // add prev time button
     let prevTimeController = this.gui.add(userChoices, 'prev');
+
+    // add playing toggle
+    let playingController = this.gui.add(userChoices, 'playing');
+
+    // subscribe to playing events
+    playingController.onFinishChange((value) => {
+      // if playing...
+      if (value) {
+        // on an interval, increment the timestep
+        this.playingInterval = window.setInterval(() => {
+          if (userChoices.time >= maxTime) return;
+
+          userChoices.time++;
+
+          onTimeChanged(userChoices.time);
+        }, this.minPlayingInterval);
+      }
+      else {
+        if (this.playingInterval == null) return;
+
+        // clear the interval
+        window.clearInterval(this.playingInterval);
+
+        this.playingInterval = null;
+      }
+    })
   }
 
   update(newPlot=true) {
