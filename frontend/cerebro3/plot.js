@@ -204,6 +204,7 @@ class Plot {
       if (newPlot) {
         Plotly.newPlot(this.plotElement, traces, layout);
 
+        // keep plots synced when zoomed
         this.initPlotSync();
       }
       else {
@@ -221,6 +222,7 @@ class Plot {
     });
   }
 
+  // TODO: finish implementing
   initPlotSync() {
     // upon plot relayout...
     this.plotElement.on("plotly_relayout", (eventData) => {
@@ -228,12 +230,11 @@ class Plot {
 
       console.log(eventData);
       console.log(this.plotElement.layout);
-      // Plotly.relayout(this.plotElement, eventData);
 
       let layoutUpdate = eventData;
       layoutUpdate["syncUpdate"] = false;
 
-      Plotly.relayout(this.plotElement, layoutUpdate);
+      // Plotly.relayout(this.plotElement, layoutUpdate);
     })
   }
 
