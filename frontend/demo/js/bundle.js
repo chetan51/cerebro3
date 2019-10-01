@@ -13759,14 +13759,36 @@ class Plot {
     this.gui = new dat.GUI({autoPlace: false});
     this.guiElement.appendChild(this.gui.domElement);
 
+    // create callback to update plot when time is changed
+    let onTimeChanged = (value) => {
+      // update timestep
+      this.timestep = value * this.timestepInterval;
+
+      // update plot
+      this.update(false);
+    }
+
     // create dictionary of user choices
     let layers = this.layers;
+    let maxTime = Math.floor(this.numTimesteps / this.timestepInterval);
     class Choices {
       constructor() {
         this.layer = layers[0];
         this.time = 0;
-        this.next = () => {};
-        this.prev = () => {};
+        this.next = () => {
+          if (this.time >= maxTime) return;
+
+          this.time++;
+
+          onTimeChanged(this.time);
+        };
+        this.prev = () => {
+          if (this.time == 0) return;
+
+          this.time--;
+
+          onTimeChanged(this.time);
+        };
       }
     }
     let userChoices = new Choices();
@@ -13784,41 +13806,16 @@ class Plot {
     });
 
     // add time slider
-    let maxTime = Math.floor(this.numTimesteps / this.timestepInterval);
-    let timeController = this.gui.add(userChoices, 'time', 0, maxTime).step(1);
-
-    let onTimeChanged = (value) => {
-      // update timestep
-      this.timestep = value * this.timestepInterval;
-
-      // update plot
-      this.update(false);
-    }
+    let timeController = this.gui.add(userChoices, 'time', 0, maxTime).step(1).listen();
 
     // subscribe to events
     timeController.onFinishChange(onTimeChanged);
 
     // add next time button
     let nextTimeController = this.gui.add(userChoices, 'next');
-    // subscribe to events
-    nextTimeController.onChange((value) => {
-      // update UI
-      timeController.setValue(userChoices.time + 1);
-
-      // trigger event
-      onTimeChanged(userChoices.time);
-    });
 
     // add prev time button
     let prevTimeController = this.gui.add(userChoices, 'prev');
-    // subscribe to events
-    prevTimeController.onChange((value) => {
-      // update UI
-      timeController.setValue(userChoices.time - 1);
-
-      // trigger event
-      onTimeChanged(userChoices.time);
-    });
   }
 
   update(newPlot=true) {
