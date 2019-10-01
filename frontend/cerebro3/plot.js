@@ -4,7 +4,8 @@ const dat = require('dat.gui');
 
 class Plot {
 
-  constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps, timestepInterval=100) {
+  constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps,
+              timestepInterval=100, minWeight=-0.5, maxWeight=0.5) {
     // save parameters
     this.plotElement = plotElement;
     this.guiElement = guiElement;
@@ -13,6 +14,8 @@ class Plot {
     this.layers = layers;
     this.numTimesteps = numTimesteps;
     this.timestepInterval = timestepInterval;
+    this.minWeight = minWeight;
+    this.maxWeight = maxWeight;
 
     // initialize properties
     this.timestep = 0;
@@ -175,8 +178,8 @@ class Plot {
           name: model,
           z: z,
           type: 'heatmap',
-          // zmin: 0,
-          // zmax: 1,
+          zmin: this.minWeight,
+          zmax: this.maxWeight,
           zauto: false,
           xaxis: `x${modelIndex+1}`,
           yaxis: `y${modelIndex+1}`,
