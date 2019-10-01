@@ -165,7 +165,9 @@ class Plot {
         for (var i = 0; i < height; i++) {
           z[i] = [];
           for (var j = 0; j < width; j++) {
-            z[i][j] = (data["pixels"][(i * width) + j] / 255) - 0.5;
+            let pixel = data["pixels"][(i * width) + j];
+            // convert from range [0, 255] to [-1, 1]
+            z[i][j] = ((pixel / 255) * 2) - 1;
           }
         }
 
