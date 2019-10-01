@@ -21,6 +21,7 @@ $(document).ready(() => {
     2300,
     timestepInterval=10,
     minWeight=-0.3,
-    maxWeight=0.3
+    maxWeight=0.3,
+    weightDeltaScale=0.05
   );
 })

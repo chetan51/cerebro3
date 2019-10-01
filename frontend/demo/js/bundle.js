@@ -13734,7 +13734,7 @@ const dat = require('dat.gui');
 class Plot {
 
   constructor(plotElement, guiElement, dataPath, models, layers, numTimesteps,
-              timestepInterval=100, minWeight=-0.5, maxWeight=0.5) {
+              timestepInterval=100, minWeight=-0.5, maxWeight=0.5, weightDeltaScale=0.1) {
     // save parameters
     this.plotElement = plotElement;
     this.guiElement = guiElement;
@@ -13745,6 +13745,7 @@ class Plot {
     this.timestepInterval = timestepInterval;
     this.minWeight = minWeight;
     this.maxWeight = maxWeight;
+    this.weightDeltaScale = weightDeltaScale;
 
     // initialize properties
     this.timestep = 0;
@@ -13796,9 +13797,11 @@ class Plot {
           onTimeChanged(this.time);
         };
         this.playing = false;
+        this.showDeltas = false;
       }
     }
     let userChoices = new Choices();
+    this.userChoices = userChoices;
 
     // add layers dropdown
     let layerController = this.gui.add(userChoices, 'layer', this.layers);
@@ -13809,7 +13812,7 @@ class Plot {
       this.layerIndex = this.layers.indexOf(value);
 
       // update plot
-      this.update(true);
+      this.update();
     });
 
     // add time slider
@@ -13849,11 +13852,21 @@ class Plot {
         this.playingInterval = null;
       }
     })
+
+    // add show delta weights toggle
+    let showDeltasController = this.gui.add(userChoices, 'showDeltas');
+
+    // subscribe to show delta events
+    showDeltasController.onFinishChange((value) => {
+      // update plot
+      this.update();
+    });
   }
 
   update(newPlot=true) {
     let requests = [];
     let modelData = {};
+    let prevModelData = {};
 
     // create requests 
     for (let model of this.models) {
@@ -13878,9 +13891,33 @@ class Plot {
           }
         })
       );
+
+      if (this.userChoices.showDeltas && this.timestep > 0) {
+        let prevPath = `data/${model}/layer-${this.layerIndex}_timestep-${this.timestep - this.timestepInterval}.png`;
+        requests.push(
+          $.ajax({
+            url: prevPath,
+            xhrFields: {
+              responseType: 'arraybuffer'
+            },
+            success: (result) => {
+              // parse it as a PNG
+              var reader = new PNGReader(result);
+              return reader.parse((err, png) => {
+                if (err) throw err;
+
+                prevModelData[model] = png;
+              });
+            },
+            error: (err) => {
+              throw err;
+            }
+          })
+        );
+      }
     }
 
-    // load the current timestep for each model
+    // load the necessary timesteps for each model
     $.when(
       ...requests
     ).then(() => {
@@ -13889,6 +13926,7 @@ class Plot {
 
       for (let model of this.models) {
         let data = modelData[model];
+        let prevData = this.userChoices.showDeltas && this.timestep > 0 ? prevModelData[model] : modelData[model];
         let width = data["width"];
         let height = data["height"];
 
@@ -13897,18 +13935,36 @@ class Plot {
         for (var i = 0; i < height; i++) {
           z[i] = [];
           for (var j = 0; j < width; j++) {
+            // get data for this pixel
             let pixel = data["pixels"][(i * width) + j];
             // convert from range [0, 255] to [-1, 1]
-            z[i][j] = ((pixel / 255) * 2) - 1;
+            let weight = ((pixel / 255) * 2) - 1;
+
+            // if we're showing deltas...
+            if (this.userChoices.showDeltas) {
+              // get data for previous timestep pixel
+              let prevPixel = prevData["pixels"][(i * width) + j];
+              // convert from range [0, 255] to [-1, 1]
+              let prevWeight = ((prevPixel / 255) * 2) - 1;
+
+              // subtract the previous time's pixel data
+              weight -= prevWeight;
+            }
+
+            // set plot data
+            z[i][j] = weight;
           }
         }
+
+        // scale range of weights depending on whether we're showing deltas or not
+        let weightScale = this.userChoices.showDeltas ? this.weightDeltaScale : 1;
 
         var trace = {
           name: model,
           z: z,
           type: 'heatmap',
-          zmin: this.minWeight,
-          zmax: this.maxWeight,
+          zmin: this.minWeight * weightScale,
+          zmax: this.maxWeight * weightScale,
           zauto: false,
           xaxis: `x${modelIndex+1}`,
           yaxis: `y${modelIndex+1}`,
@@ -14037,7 +14093,8 @@ $(document).ready(() => {
     2300,
     timestepInterval=10,
     minWeight=-0.3,
-    maxWeight=0.3
+    maxWeight=0.3,
+    weightDeltaScale=0.05
   );
 })
 
