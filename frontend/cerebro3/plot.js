@@ -22,7 +22,7 @@ class Plot {
     this.layerIndex = 0;
 
     // set parameters
-    this.minPlayingInterval = 500;  // milliseconds
+    this.minPlayingInterval = 10;  // milliseconds
 
     // init GUI
     this.initGui();
@@ -203,6 +203,8 @@ class Plot {
 
       if (newPlot) {
         Plotly.newPlot(this.plotElement, traces, layout);
+
+        this.initPlotSync();
       }
       else {
         // convert traces to a data update
@@ -217,6 +219,22 @@ class Plot {
         Plotly.restyle(this.plotElement, update, layout);
       }
     });
+  }
+
+  initPlotSync() {
+    // upon plot relayout...
+    this.plotElement.on("plotly_relayout", (eventData) => {
+      if (eventData["syncUpdate"] == false) return;
+
+      console.log(eventData);
+      console.log(this.plotElement.layout);
+      // Plotly.relayout(this.plotElement, eventData);
+
+      let layoutUpdate = eventData;
+      layoutUpdate["syncUpdate"] = false;
+
+      Plotly.relayout(this.plotElement, layoutUpdate);
+    })
   }
 
 }
