@@ -222,19 +222,59 @@ class Plot {
     });
   }
 
-  // TODO: finish implementing
   initPlotSync() {
     // upon plot relayout...
     this.plotElement.on("plotly_relayout", (eventData) => {
+      // only act if this is a user-triggered relayout
       if (eventData["syncUpdate"] == false) return;
 
-      console.log(eventData);
-      console.log(this.plotElement.layout);
+      // find the plot that was updated
+      let updatedPlotIndex = 0;
+      for (let i = 0; i < this.models.length; i++) {
+        let indexName = i > 0 ? i+1 : "";
+        let xAxisName = `xaxis${indexName}`;
+        let yAxisName = `yaxis${indexName}`;
+        if (
+          `${xAxisName}.range[0]` in eventData ||
+          `${xAxisName}.range[1]` in eventData ||
+          `${xAxisName}.autorange` in eventData ||
+          `${yAxisName}.range[0]` in eventData ||
+          `${yAxisName}.range[1]` in eventData ||
+          `${yAxisName}.autorange` in eventData
+        ) {
+          // this plot was updated
+          updatedPlotIndex = i;
 
-      let layoutUpdate = eventData;
+          // do nothing more
+          break;
+        }
+      }
+      
+      // make all plots mirror this one
+      let layoutUpdate = {};
       layoutUpdate["syncUpdate"] = false;
 
-      // Plotly.relayout(this.plotElement, layoutUpdate);
+      let updatedIndexName = updatedPlotIndex > 0 ? updatedPlotIndex+1 : "";
+      let updatedXAxisName = `xaxis${updatedIndexName}`;
+      let updatedYAxisName = `yaxis${updatedIndexName}`;
+
+      for (let i = 0; i < this.models.length; i++) {
+        if (i == updatedPlotIndex) continue;  // skip the updated one
+
+        let indexName = i > 0 ? i+1 : "";
+        let xAxisName = `xaxis${indexName}`;
+        let yAxisName = `yaxis${indexName}`;
+
+        layoutUpdate[xAxisName] = this.plotElement.layout[updatedXAxisName];
+        layoutUpdate[yAxisName] = this.plotElement.layout[updatedYAxisName];
+
+        // this is necessary to prevent "Autoscale" button from breaking the plot sync
+        layoutUpdate[xAxisName]["autorange"] = false;
+        layoutUpdate[yAxisName]["autorange"] = false;
+      }
+
+      // relayout all the plots
+      Plotly.relayout(this.plotElement, layoutUpdate);
     })
   }
 
