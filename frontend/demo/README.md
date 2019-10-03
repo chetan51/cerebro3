@@ -13,6 +13,6 @@ Demo for Cerebro 3 (a web-based visualization platform for Neural Networks).
 
 (Requires [Watchify](https://github.com/browserify/watchify) to be installed.)
 
-1. Run `watchify src/main.js -o js/bundle.js` (edits to JavaScript source files will now be bundled into the output webapp).
+1. Run `watchify src/main.js -o js/bundle.js` (edits to JavaScript source files will now be bundled into the output webapp automatically).
 2. Start server (with Python 3): `python -m http.server`.
 3. Open page: `http://localhost:8000`.
