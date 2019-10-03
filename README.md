@@ -2,6 +2,8 @@
 
 A web-based visualization platform for Neural Networks.
 
+## Example
+
 ![Before training](screenshots/1-before_training.png)
 
 ![After training](screenshots/2-after_training.png)
