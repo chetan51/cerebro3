@@ -1,6 +1,6 @@
 # Cerebro 3
 
-JavaScript frontend for Cerebro 3 (a web-based visualization platform for Neural Networks.)
+JavaScript frontend for Cerebro 3 (a web-based visualization platform for Neural Networks).
 
 ## Demo
 
