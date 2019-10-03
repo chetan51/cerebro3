@@ -8,6 +8,10 @@ A web-based visualization platform for Neural Networks.
 
 ![After training](screenshots/2-after_training.png)
 
+## Demo
+
+See [demo README](frontend/demo/README.md).
+
 ## Backend
 
 [Backend for Pytorch to save model states](backend/pytorch/README.md)
