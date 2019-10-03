@@ -4,15 +4,9 @@ Pytorch backend for Cerebro 3 (a web-based visualization platform for Neural Net
 
 ## Installation
 
-### From pip
+(Any changes to the package propagate to users of the package on the local machine instantly.)
 
-Run `pip install cerebro3_pytorch`
-
-### During development
-
-(Any changes to the package propagate to users of the package instantly.)
-
-Run `pip install -e .`
+In this package's directory, run `pip install -e .`
 
 ## Usage
 
@@ -22,9 +16,9 @@ Run `pip install -e .`
 
 2. Patch the network (any `nn.Module`):
 
-> patcher = Patcher("DenseReLU")
+> patcher = Patcher("NETWORK_NAME")
 > patcher.patch(module)
 
 3. After training the network, save the visualizations data:
 
-> patcher.save(path, timestep_interval=100)
+> patcher.save(PATH, timestep_interval=10)
